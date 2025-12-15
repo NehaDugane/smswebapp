@@ -2,26 +2,21 @@ pipeline {
     agent any
 
     environment {
-        IIS_PATH = "C:\\inetpub\\smswebapp"
+        DOTNET = 'dotnet'
+        PUBLISH_DIR = 'C:\\inetpub\\wwwroot\\smswebapp'
     }
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/NehaDugane/smswebapp.git'
-            }
-        }
-
         stage('Restore') {
             steps {
-                bat 'dotnet restore'
+                bat 'dotnet restore smswebapp/smswebapp.csproj'
             }
         }
 
         stage('Build') {
             steps {
-                bat 'dotnet build --configuration Release'
+                bat 'dotnet build smswebapp/smswebapp.csproj -c Release --no-restore'
             }
         }
 
@@ -29,7 +24,7 @@ pipeline {
             steps {
                 bat '''
                 if exist publish rmdir /s /q publish
-                dotnet publish -c Release -o publish
+                dotnet publish smswebapp/smswebapp.csproj -c Release -o publish
                 '''
             }
         }
@@ -37,14 +32,16 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 bat '''
-                echo Stopping IIS site
-                %windir%\\system32\\inetsrv\\appcmd stop site smswebapp
+                echo Stopping IIS site...
+                %windir%\\system32\\inetsrv\\appcmd stop site "Default Web Site"
 
-                echo Copying files
-                xcopy publish "%IIS_PATH%" /E /Y /I
+                if exist "%PUBLISH_DIR%" rmdir /s /q "%PUBLISH_DIR%"
+                mkdir "%PUBLISH_DIR%"
 
-                echo Starting IIS site
-                %windir%\\system32\\inetsrv\\appcmd start site smswebapp
+                xcopy publish "%PUBLISH_DIR%" /E /I /Y
+
+                echo Starting IIS site...
+                %windir%\\system32\\inetsrv\\appcmd start site "Default Web Site"
                 '''
             }
         }
@@ -52,10 +49,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment to IIS successful ✅"
+            echo 'Deployment successful ✅'
         }
         failure {
-            echo "Deployment failed ❌"
+            echo 'Deployment failed ❌'
         }
     }
 }
