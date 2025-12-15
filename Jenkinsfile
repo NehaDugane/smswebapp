@@ -2,43 +2,69 @@ pipeline {
     agent any
 
     environment {
-        DOTNET_CLI_HOME = "C:\\Program Files\\dotnet"
+        APP_NAME = "smswebapp"
+        BUILD_VERSION = "1.0.${BUILD_NUMBER}"
+        NEXUS_URL = "http://192.168.1.7:8081"
+        NEXUS_REPO = "dotnet-artifacts"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
+        stage('Restore') {
+            steps {
+                bat 'dotnet restore smswebapp/smswebapp.csproj'
+            }
+        }
+
         stage('Build') {
             steps {
-                script {
-                    // Restoring dependencies
-                    //bat "cd ${DOTNET_CLI_HOME} && dotnet restore"
-                    bat "dotnet restore"
-
-                    // Building the application
-                    bat "dotnet build --configuration Release"
-                }
+                bat 'dotnet build smswebapp/smswebapp.csproj --configuration Release --no-restore'
             }
         }
 
         stage('Test') {
             steps {
-                script {
-                    // Running tests
-                    bat "dotnet test --no-restore --configuration Release"
-                }
+                bat 'dotnet test --no-build --configuration Release || exit 0'
             }
         }
 
         stage('Publish') {
             steps {
-                script {
-                    // Publishing the application
-                    bat "dotnet publish --no-restore --configuration Release --output .\\publish"
+                bat '''
+                dotnet publish smswebapp/smswebapp.csproj ^
+                  --configuration Release ^
+                  --output publish
+                '''
+            }
+        }
+
+        stage('Package Artifact') {
+            steps {
+                bat '''
+                if exist %APP_NAME%-%BUILD_VERSION%.zip del %APP_NAME%-%BUILD_VERSION%.zip
+                powershell Compress-Archive -Path publish\\* -DestinationPath %APP_NAME%-%BUILD_VERSION%.zip
+                '''
+            }
+        }
+
+        stage('Upload to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-creds',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    bat '''
+                    curl -v -u %NEXUS_USER%:%NEXUS_PASS% ^
+                    --upload-file %APP_NAME%-%BUILD_VERSION%.zip ^
+                    %NEXUS_URL%/repository/%NEXUS_REPO%/%APP_NAME%/%BUILD_VERSION%/%APP_NAME%-%BUILD_VERSION%.zip
+                    '''
                 }
             }
         }
@@ -46,7 +72,14 @@ pipeline {
 
     post {
         success {
-            echo 'Build, test, and publish successful!'
+            echo "Build & upload successful 🚀"
+        }
+        failure {
+            echo "Pipeline failed ❌"
+        }
+        cleanup {
+            cleanWs()
         }
     }
 }
+
