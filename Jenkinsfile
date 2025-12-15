@@ -33,18 +33,15 @@ pipeline {
             steps {
                 bat '''
                 echo Stopping IIS site...
-                %windir%\\system32\\inetsrv\\appcmd stop site "Default Web Site"
+                C:\\Windows\\System32\\inetsrv\\appcmd stop site smswebapp
 
-                if exist "%PUBLISH_DIR%" rmdir /s /q "%PUBLISH_DIR%"
-                mkdir "%PUBLISH_DIR%"
+               echo Deploying files...
+               xcopy publish\\* C:\\inetpub\\smswebapp\\ /E /Y /I
 
-                xcopy publish "%PUBLISH_DIR%" /E /I /Y
-
-                echo Starting IIS site...
-                %windir%\\system32\\inetsrv\\appcmd start site "Default Web Site"
-                '''
-            }
-        }
+               echo Starting IIS site...
+               C:\\Windows\\System32\\inetsrv\\appcmd start site smswebapp
+             '''
+         }
     }
 
     post {
