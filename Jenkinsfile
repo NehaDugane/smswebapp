@@ -2,84 +2,60 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "smswebapp"
-        BUILD_VERSION = "1.0.${BUILD_NUMBER}"
-        NEXUS_URL = "http://192.168.1.7:8081"
-        NEXUS_REPO = "dotnet-artifacts"
+        IIS_PATH = "C:\\inetpub\\smswebapp"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git 'https://github.com/NehaDugane/smswebapp.git'
             }
         }
 
         stage('Restore') {
             steps {
-                bat 'dotnet restore smswebapp/smswebapp.csproj'
+                bat 'dotnet restore'
             }
         }
 
         stage('Build') {
             steps {
-                bat 'dotnet build smswebapp/smswebapp.csproj --configuration Release --no-restore'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                bat 'dotnet test --no-build --configuration Release || exit 0'
+                bat 'dotnet build --configuration Release'
             }
         }
 
         stage('Publish') {
             steps {
                 bat '''
-                dotnet publish smswebapp/smswebapp.csproj ^
-                  --configuration Release ^
-                  --output publish
+                if exist publish rmdir /s /q publish
+                dotnet publish -c Release -o publish
                 '''
             }
         }
 
-        stage('Package Artifact') {
+        stage('Deploy to IIS') {
             steps {
                 bat '''
-                if exist %APP_NAME%-%BUILD_VERSION%.zip del %APP_NAME%-%BUILD_VERSION%.zip
-                powershell Compress-Archive -Path publish\\* -DestinationPath %APP_NAME%-%BUILD_VERSION%.zip
-                '''
-            }
-        }
+                echo Stopping IIS site
+                %windir%\\system32\\inetsrv\\appcmd stop site smswebapp
 
-        stage('Upload to Nexus') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'nexus-creds',
-                    usernameVariable: 'NEXUS_USER',
-                    passwordVariable: 'NEXUS_PASS'
-                )]) {
-                    bat '''
-                    curl -v -u %NEXUS_USER%:%NEXUS_PASS% ^
-                    --upload-file %APP_NAME%-%BUILD_VERSION%.zip ^
-                    %NEXUS_URL%/repository/%NEXUS_REPO%/%APP_NAME%/%BUILD_VERSION%/%APP_NAME%-%BUILD_VERSION%.zip
-                    '''
-                }
+                echo Copying files
+                xcopy publish "%IIS_PATH%" /E /Y /I
+
+                echo Starting IIS site
+                %windir%\\system32\\inetsrv\\appcmd start site smswebapp
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "Build & upload successful 🚀"
+            echo "Deployment to IIS successful ✅"
         }
         failure {
-            echo "Pipeline failed ❌"
-        }
-        cleanup {
-            cleanWs()
+            echo "Deployment failed ❌"
         }
     }
 }
-

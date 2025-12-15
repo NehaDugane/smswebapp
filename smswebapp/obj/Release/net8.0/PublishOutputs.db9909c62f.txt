@@ -1,0 +1,7 @@
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\smswebapp.exe
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\appsettings.Development.json
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\appsettings.json
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\smswebapp.dll
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\smswebapp.deps.json
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\smswebapp.runtimeconfig.json
+C:\ProgramData\Jenkins\.jenkins\workspace\smswebapp\smswebapp\publish\smswebapp.pdb
